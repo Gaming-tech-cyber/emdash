@@ -67,6 +67,21 @@ interface AuthDiscovery {
 	};
 }
 
+function parseSafeVerificationUri(rawUri: string): string {
+	let parsed: URL;
+	try {
+		parsed = new URL(rawUri);
+	} catch {
+		throw new Error("Received invalid verification URI from device flow.");
+	}
+
+	if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+		throw new Error("Received unsupported verification URI protocol from device flow.");
+	}
+
+	return parsed.toString();
+}
+
 /**
  * Authenticate with the marketplace via GitHub Device Flow.
  * Returns the marketplace JWT and author info.
@@ -98,11 +113,12 @@ async function authenticateViaDeviceFlow(registryUrl: string): Promise<Marketpla
 	}
 
 	const deviceCode = (await deviceRes.json()) as DeviceCodeResponse;
+	const verificationUri = parseSafeVerificationUri(deviceCode.verification_uri);
 
 	// Step 3: Display instructions
 	console.log();
 	consola.info("Open your browser to:");
-	console.log(`  ${pc.cyan(pc.bold(deviceCode.verification_uri))}`);
+	console.log(`  ${pc.cyan(pc.bold(verificationUri))}`);
 	console.log();
 	consola.info(`Enter code: ${pc.yellow(pc.bold(deviceCode.user_code))}`);
 	console.log();
@@ -111,11 +127,11 @@ async function authenticateViaDeviceFlow(registryUrl: string): Promise<Marketpla
 	try {
 		const { execFile } = await import("node:child_process");
 		if (process.platform === "darwin") {
-			execFile("open", [deviceCode.verification_uri]);
+			execFile("open", [verificationUri]);
 		} else if (process.platform === "win32") {
-			execFile("cmd", ["/c", "start", "", deviceCode.verification_uri]);
+			execFile("explorer.exe", [verificationUri]);
 		} else {
-			execFile("xdg-open", [deviceCode.verification_uri]);
+			execFile("xdg-open", [verificationUri]);
 		}
 	} catch {
 		// User can open manually
