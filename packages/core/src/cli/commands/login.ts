@@ -283,9 +283,24 @@ export const loginCommand = defineCommand({
 			const deviceCode = deviceCodeBody.data;
 
 			// Step 3: Display instructions
+			let verificationUri: string;
+			try {
+				const parsedVerificationUrl = new URL(deviceCode.verification_uri);
+				if (
+					parsedVerificationUrl.protocol !== "http:" &&
+					parsedVerificationUrl.protocol !== "https:"
+				) {
+					throw new Error("Unsupported verification URI protocol");
+				}
+				verificationUri = parsedVerificationUrl.toString();
+			} catch {
+				consola.error("Received an invalid verification URL from the server.");
+				process.exit(2);
+			}
+
 			console.log();
 			consola.info(`Open your browser to:`);
-			console.log(`  ${pc.cyan(pc.bold(deviceCode.verification_uri))}`);
+			console.log(`  ${pc.cyan(pc.bold(verificationUri))}`);
 			console.log();
 			consola.info(`Enter code: ${pc.yellow(pc.bold(deviceCode.user_code))}`);
 			console.log();
@@ -294,11 +309,11 @@ export const loginCommand = defineCommand({
 			try {
 				const { execFile } = await import("node:child_process");
 				if (process.platform === "darwin") {
-					execFile("open", [deviceCode.verification_uri]);
+					execFile("open", [verificationUri]);
 				} else if (process.platform === "win32") {
-					execFile("cmd", ["/c", "start", "", deviceCode.verification_uri]);
+					execFile("powershell", ["-NoProfile", "-NonInteractive", "-Command", "Start-Process", verificationUri]);
 				} else {
-					execFile("xdg-open", [deviceCode.verification_uri]);
+					execFile("xdg-open", [verificationUri]);
 				}
 			} catch {
 				// Ignore — user can open manually
