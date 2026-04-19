@@ -4,6 +4,7 @@
 
 const DEFAULT_REDIRECT = "/_emdash/admin";
 const LEADING_SLASHES = /^\/+/;
+const ALLOWED_REDIRECT_PREFIXES = ["/_emdash/admin"];
 
 /**
  * Sanitize a redirect URL to prevent open-redirect and javascript: XSS attacks.
@@ -15,9 +16,23 @@ const LEADING_SLASHES = /^\/+/;
  * Returns the default admin URL when the input is unsafe.
  */
 export function sanitizeRedirectUrl(raw: string): string {
-	if (raw.startsWith("/") && !raw.startsWith("//") && !raw.includes("\\")) {
-		return raw;
+	// Must be an absolute path on this origin (not protocol-relative, no backslash tricks)
+	if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) {
+		return DEFAULT_REDIRECT;
 	}
+
+	try {
+		const parsed = new URL(raw, "http://localhost");
+		const normalized = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+
+		// Allow redirects only to approved in-app admin paths
+		if (ALLOWED_REDIRECT_PREFIXES.some((prefix) => normalized.startsWith(prefix))) {
+			return normalized;
+		}
+	} catch {
+		// Fall through to default
+	}
+
 	return DEFAULT_REDIRECT;
 }
 
