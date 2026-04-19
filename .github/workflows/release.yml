@@ -85,4 +85,6 @@ jobs:
       needs.release.outputs.published == 'true' ||
       inputs.publish-only
     uses: ./.github/workflows/sync-templates.yml
+    permissions:
+      contents: read
     secrets: inherit
